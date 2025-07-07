@@ -54,14 +54,13 @@ module GrapeSwagger
       end
 
       def enrich_with_attributes(schema)
-        attributes_hash.each do |attribute, type|
-          schema[:data][:properties][:attributes][:properties][attribute] = { type: }
-          example_method = "#{type}_example"
-          unless respond_to?(example_method, true)
-            puts "WARN unexpected type encountered, missing #{example_method}  --use string example instead"
-            example_method = 'string_example'
-          end
-          schema[:data][:example][:attributes][attribute] = send(example_method)
+        attributes_hash.each do |attribute, type_hash|
+          type = type_hash[:type]
+          required = type_hash[:required] || false
+          schema[:data][:properties][:attributes][:properties][attribute] = { type:, required:, example: type_hash[:example] }
+          schema[:data][:example][:attributes][attribute] = type_hash[:example]
+          schema[:data][:properties][:attributes][:required] ||= []
+          schema[:data][:properties][:attributes][:required] << attribute if required
         end
 
         schema
@@ -104,7 +103,8 @@ module GrapeSwagger
         activerecord_model.columns.each_with_object({}) do |column, attributes|
           next unless model.attributes_to_serialize.key?(column.name.to_sym)
 
-          attributes[column.name] = column.type
+          attributes[column.name] = column.documentation
+          attributes[column.name] ||= { type: column.type }
         end
       end
 
@@ -114,13 +114,11 @@ module GrapeSwagger
 
       def map_model_attributes
         attributes = {}
-        (model.attributes_to_serialize || []).each do |attribute, _| # rubocop:disable Style/HashEachMethods
-          attributes[attribute] =
-            if model.respond_to? :attribute_types
-              model.attribute_types[attribute] || :string
-            else
-              :string
-            end
+        (model.attributes_to_serialize || []).each do |attribute, options|
+          type = options.documentation.dig(:type) || :string
+
+          attributes[attribute] = options.documentation || {}
+          attributes[attribute][:type] ||= type
         end
         attributes
       end
@@ -148,28 +146,28 @@ module GrapeSwagger
       end
 
       def integer_example
-        defined?(Faker) ? Faker::Number.number.to_i : rand(1..9999)
+        1
       end
 
       def string_example
-        defined?(Faker) ? Faker::Lorem.word : 'Example string'
+        'Example string'
       end
 
       def text_example
-        defined?(Faker) ? Faker::Lorem.paragraph : 'Example string'
+        'Example text'
       end
       alias citext_example text_example
 
       def float_example
-        rand * rand(1..100)
+        10.0
       end
 
       def date_example
-        Date.today.to_s
+        Date.today.iso8601
       end
 
       def datetime_example
-        Time.current.to_s
+        Time.current.iso8601
       end
       alias time_example datetime_example
 

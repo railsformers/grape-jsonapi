@@ -1,3 +1,10 @@
+GIT
+  remote: https://github.com/railsformers/jsonapi-serializer.git
+  revision: 0f40b68f78ed1f6d38ac21bf31743478f7123094
+  specs:
+    jsonapi-serializer (2.2.0)
+      activesupport (>= 4.2)
+
 PATH
   remote: .
   specs:
@@ -125,8 +132,6 @@ GEM
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
     json (2.12.0)
-    jsonapi-serializer (2.2.0)
-      activesupport (>= 4.2)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
     logger (1.7.0)
@@ -268,7 +273,7 @@ PLATFORMS
 DEPENDENCIES
   grape
   grape-jsonapi!
-  jsonapi-serializer
+  jsonapi-serializer!
   rails (>= 4.2.0)
   rspec (~> 3.7)
   rubocop
