@@ -57,7 +57,8 @@ module GrapeSwagger
         attributes_hash.each do |attribute, type_hash|
           type = type_hash[:type]
           required = type_hash[:required] || false
-          schema[:data][:properties][:attributes][:properties][attribute] = { type:, required:, example: type_hash[:example] }
+          example = type_hash[:example] || send("#{type}_example")
+          schema[:data][:properties][:attributes][:properties][attribute] = { type:, required:, example: }
           schema[:data][:example][:attributes][attribute] = type_hash[:example]
           schema[:data][:properties][:attributes][:required] ||= []
           schema[:data][:properties][:attributes][:required] << attribute if required
