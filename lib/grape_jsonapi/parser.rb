@@ -162,7 +162,7 @@ module GrapeSwagger
       alias citext_example text_example
 
       def float_example
-        10.0
+        (10..100).to_a.sample.to_f
       end
 
       def date_example
