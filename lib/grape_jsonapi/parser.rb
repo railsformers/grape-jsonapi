@@ -117,9 +117,11 @@ module GrapeSwagger
         attributes = {}
         (model.attributes_to_serialize || []).each do |attribute, options|
           type = options.documentation.dig(:type) || :string
+          example = options.documentation.dig(:example) || send("#{type}_example")
 
           attributes[attribute] = options.documentation || {}
           attributes[attribute][:type] ||= type
+          attributes[attribute][:example] ||= example
         end
         attributes
       end
