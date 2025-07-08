@@ -83,7 +83,7 @@ module Grape
             "#{(object.try(:model_name) || object.class).name}Serializer"
           end
 
-          klass_name&.safe_constantize
+          klass_name.is_a?(String) ? klass_name.safe_constantize : klass_name
         end
 
         def serialize_each_pair(object, env)

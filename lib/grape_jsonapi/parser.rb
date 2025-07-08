@@ -104,8 +104,11 @@ module GrapeSwagger
         activerecord_model.columns.each_with_object({}) do |column, attributes|
           next unless model.attributes_to_serialize.key?(column.name.to_sym)
 
-          attributes[column.name] = column.documentation
-          attributes[column.name] ||= { type: column.type }
+          documentation = model.attributes_to_serialize[column.name.to_sym]&.documentation || {}
+          example = documentation[:example] || send("#{column.type}_example")
+          attributes[column.name] = documentation
+          attributes[column.name][:type] ||= column.type
+          attributes[column.name][:example] ||= example
         end
       end
 
