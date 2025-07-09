@@ -5,10 +5,13 @@ module Grape
     module Jsonapi
       class << self
         def call(object, env)
-          response = serializable?(object) ? serialize(object, env) : { data: object }
           ::Grape::Json.dump(
-            response.merge(env.slice('meta', 'links'))
+            response(object, env).merge(env.slice('meta', 'links'))
           )
+        end
+
+        def response(object, env)
+          serializable?(object) ? serialize(object, env) : { data: object }
         end
 
         private
