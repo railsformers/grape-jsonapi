@@ -55,13 +55,15 @@ module GrapeSwagger
 
       def enrich_with_attributes(schema)
         attributes_hash.each do |attribute, type_hash|
-          type = type_hash[:type]
+          type = type_hash[:type].try(:downcase)
           required = type_hash[:required] || false
           example = type_hash[:example] || send("#{type}_example")
-          schema[:data][:properties][:attributes][:properties][attribute] = { type:, required:, example: }
+          enum = type_hash[:enum] || nil
+          schema[:data][:properties][:attributes][:properties][attribute] = { type:, example: }
           schema[:data][:example][:attributes][attribute] = type_hash[:example]
           schema[:data][:properties][:attributes][:required] ||= []
           schema[:data][:properties][:attributes][:required] << attribute if required
+          schema[:data][:properties][:attributes][:properties][attribute][:enum] = enum if enum
         end
 
         schema
@@ -106,9 +108,11 @@ module GrapeSwagger
 
           documentation = model.attributes_to_serialize[column.name.to_sym]&.documentation || {}
           example = documentation[:example] || send("#{column.type}_example")
+          values = documentation[:values] || nil
           attributes[column.name] = documentation
           attributes[column.name][:type] ||= column.type
           attributes[column.name][:example] ||= example
+          attributes[column.name][:enum] ||= values if values
         end
       end
 
@@ -121,10 +125,12 @@ module GrapeSwagger
         (model.attributes_to_serialize || []).each do |attribute, options|
           type = options.documentation.dig(:type) || :string
           example = options.documentation.dig(:example) || send("#{type}_example")
+          values = options.documentation.dig(:values) || nil
 
           attributes[attribute] = options.documentation || {}
           attributes[attribute][:type] ||= type
           attributes[attribute][:example] ||= example
+          attributes[attribute][:enum] ||= values if values
         end
         attributes
       end
