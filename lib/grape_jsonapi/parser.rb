@@ -34,7 +34,7 @@ module GrapeSwagger
           type: :object,
           properties: default_schema_propeties,
           example: {
-            id: 1,
+            id: '1',
             type: model.record_type,
             attributes: {},
             relationships: {}
@@ -61,8 +61,17 @@ module GrapeSwagger
           enum = type_hash[:enum] || nil
           schema[:data][:properties][:attributes][:properties][attribute] = { type:, example: }
           schema[:data][:example][:attributes][attribute] = type_hash[:example]
-          schema[:data][:properties][:attributes][:required] ||= []
-          schema[:data][:properties][:attributes][:required] << attribute if required
+
+          if type.to_s.downcase == 'array'
+            schema[:data][:properties][:attributes][:properties][attribute][:type] = :array
+            schema[:data][:properties][:attributes][:properties][attribute][:items] = { type: :object }
+          end
+
+          if required
+            schema[:data][:properties][:attributes][:required] ||= []
+            schema[:data][:properties][:attributes][:required] << attribute
+          end
+
           schema[:data][:properties][:attributes][:properties][attribute][:enum] = enum if enum
         end
 
@@ -111,6 +120,7 @@ module GrapeSwagger
           values = documentation[:values] || nil
           attributes[column.name] = documentation
           attributes[column.name][:type] ||= column.type
+          # attributes[column.name][:items] ||= { type: :object } if column.type.to_s.downcase == 'array'
           attributes[column.name][:example] ||= example
           attributes[column.name][:enum] ||= values if values
         end
@@ -129,6 +139,7 @@ module GrapeSwagger
 
           attributes[attribute] = options.documentation || {}
           attributes[attribute][:type] ||= type
+          # attributes[attribute][:items] ||= { type: :object } if type.to_s.downcase == 'array'
           attributes[attribute][:example] ||= example
           attributes[attribute][:enum] ||= values if values
         end
