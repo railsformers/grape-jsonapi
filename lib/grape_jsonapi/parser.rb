@@ -127,7 +127,7 @@ module GrapeSwagger
       end
 
       def activerecord_model
-        model.record_type.to_s.camelize.safe_constantize
+        model.record_type.to_s.singularize.camelize.safe_constantize
       end
 
       def map_model_attributes
