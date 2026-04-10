@@ -6,7 +6,7 @@ module GrapeSwagger
       RELATIONSHIP_DEFAULT_ITEM = {
         type: :object,
         properties: {
-          id: { type: :integer },
+          id: { type: :string },
           type: { type: :string }
         }
       }.freeze
@@ -32,9 +32,9 @@ module GrapeSwagger
       def default_schema
         { data: {
           type: :object,
-          properties: default_schema_propeties,
+          properties: default_schema_properties,
           example: {
-            id: '1',
+            id: uuid_example,
             type: model.record_type,
             attributes: {},
             relationships: {}
@@ -42,8 +42,8 @@ module GrapeSwagger
         } }
       end
 
-      def default_schema_propeties
-        { id: { type: :integer },
+      def default_schema_properties
+        { id: { type: :string },
           type: { type: :string },
           attributes: default_schema_object,
           relationships: default_schema_object }
@@ -54,25 +54,23 @@ module GrapeSwagger
       end
 
       def enrich_with_attributes(schema)
+        attributes_schema = schema[:data][:properties][:attributes]
+        attributes_properties = attributes_schema[:properties]
+        attributes_examples = schema[:data][:example][:attributes]
+
         attributes_hash.each do |attribute, type_hash|
-          type = type_hash[:type].try(:downcase)
-          required = type_hash[:required] || false
-          example = type_hash[:example] || send("#{type}_example")
-          enum = type_hash[:enum] || nil
-          schema[:data][:properties][:attributes][:properties][attribute] = { type:, example: }
-          schema[:data][:example][:attributes][attribute] = type_hash[:example]
+          normalized_metadata = normalize_attribute_metadata(type_hash)
+          type = normalize_type(normalized_metadata[:type])
 
-          if type.to_s.downcase == 'array'
-            schema[:data][:properties][:attributes][:properties][attribute][:type] = :array
-            schema[:data][:properties][:attributes][:properties][attribute][:items] = { type: :object }
-          end
+          attribute_schema = { type:, example: normalized_metadata[:example] }
+          attribute_schema[:description] = normalized_metadata[:description] if normalized_metadata[:description]
+          attribute_schema[:desc] = normalized_metadata[:desc] if normalized_metadata[:desc]
+          attribute_schema[:enum] = normalized_metadata[:enum] if normalized_metadata[:enum]
+          attribute_schema[:items] = normalized_metadata[:items] || { type: :object } if type == :array
 
-          if required
-            schema[:data][:properties][:attributes][:required] ||= []
-            schema[:data][:properties][:attributes][:required] << attribute
-          end
-
-          schema[:data][:properties][:attributes][:properties][attribute][:enum] = enum if enum
+          attributes_properties[attribute] = attribute_schema
+          attributes_examples[attribute] = normalized_metadata[:example]
+          append_required_attribute(attributes_schema, attribute) if normalized_metadata[:required]
         end
 
         schema
@@ -115,14 +113,8 @@ module GrapeSwagger
         activerecord_model.columns.each_with_object({}) do |column, attributes|
           next unless model.attributes_to_serialize.key?(column.name.to_sym)
 
-          documentation = model.attributes_to_serialize[column.name.to_sym]&.documentation || {}
-          example = documentation[:example] || send("#{column.type}_example")
-          values = documentation[:values] || nil
-          attributes[column.name] = documentation
-          attributes[column.name][:type] ||= column.type
-          # attributes[column.name][:items] ||= { type: :object } if column.type.to_s.downcase == 'array'
-          attributes[column.name][:example] ||= example
-          attributes[column.name][:enum] ||= values if values
+          documentation = model.attributes_to_serialize[column.name.to_sym]&.documentation
+          attributes[column.name] = normalize_documentation(documentation, fallback_type: column.type)
         end
       end
 
@@ -133,17 +125,52 @@ module GrapeSwagger
       def map_model_attributes
         attributes = {}
         (model.attributes_to_serialize || []).each do |attribute, options|
-          type = options.documentation.dig(:type) || :string
-          example = options.documentation.dig(:example) || send("#{type}_example")
-          values = options.documentation.dig(:values) || nil
-
-          attributes[attribute] = options.documentation || {}
-          attributes[attribute][:type] ||= type
-          # attributes[attribute][:items] ||= { type: :object } if type.to_s.downcase == 'array'
-          attributes[attribute][:example] ||= example
-          attributes[attribute][:enum] ||= values if values
+          attributes[attribute] = normalize_documentation(options.documentation, fallback_type: :string)
         end
         attributes
+      end
+
+      def normalize_documentation(documentation, fallback_type:)
+        normalized = (documentation || {}).dup
+        type = normalized[:type] || fallback_type
+        values = normalized[:values] || normalized[:enum]
+
+        normalized[:type] ||= type
+        normalized[:example] ||= example_for_type(type)
+        normalized[:enum] ||= values if values
+        normalized
+      end
+
+      def normalize_attribute_metadata(type_hash)
+        type = normalize_type(type_hash[:type])
+        {
+          type:,
+          example: type_hash[:example] || example_for_type(type),
+          enum: type_hash[:enum] || type_hash[:values],
+          description: type_hash[:description] || type_hash[:desc],
+          desc: type_hash[:desc],
+          items: type_hash[:items],
+          required: !!type_hash[:required]
+        }
+      end
+
+      def append_required_attribute(attributes_schema, attribute)
+        attributes_schema[:required] ||= []
+        attributes_schema[:required] << attribute
+      end
+
+      def normalize_type(type)
+        normalized = type.to_s.strip.downcase
+        return :string if normalized.empty?
+
+        normalized.to_sym
+      end
+
+      def example_for_type(type)
+        method_name = "#{normalize_type(type)}_example"
+        return send(method_name) if respond_to?(method_name, true)
+
+        string_example
       end
 
       def relationships_properties(relationship_data)
@@ -157,7 +184,7 @@ module GrapeSwagger
 
       def relationships_example(relationship_data)
         data = {
-          id: 1,
+          id: uuid_example,
           type: relationship_data[:record_type] ||
                 relationship_data[:static_record_type] ||
                 relationship_data[:object_method_name]
@@ -209,7 +236,7 @@ module GrapeSwagger
       end
 
       def uuid_example
-        SecureRandom.uuid
+        SecureRandom.uuid_v7
       end
     end
   end

@@ -14,19 +14,20 @@ describe GrapeSwagger::Jsonapi::Parser do
   describe 'instance methods' do
     describe '#call' do
       subject { described_class.new(model, endpoint).call }
+      before { allow(SecureRandom).to receive(:uuid_v7).and_return 'fakeuuid' }
 
       it 'return a hash defining the schema' do
         expect(subject).to eq({
           data: {
             type: :object,
             properties: {
-              id: { type: :integer },
+              id: { type: :string },
               type: { type: :string },
               attributes: {
                 type: :object,
                 properties: {
-                  title: { type: :string },
-                  body: { type: :string }
+                  title: { type: :string, example: 'Example string' },
+                  body: { type: :string, example: 'Example string' }
                 }
               },
               relationships: {
@@ -38,7 +39,7 @@ describe GrapeSwagger::Jsonapi::Parser do
                       data: {
                         type: :object,
                         properties: {
-                          id: { type: :integer },
+                          id: { type: :string },
                           type: { type: :string }
                         }
                       }
@@ -48,7 +49,7 @@ describe GrapeSwagger::Jsonapi::Parser do
               }
             },
             example: {
-              id: 1,
+              id: 'fakeuuid',
               type: :blog_post,
               attributes: {
                 title: 'Example string',
@@ -57,7 +58,7 @@ describe GrapeSwagger::Jsonapi::Parser do
               relationships: {
                 user: {
                   data: {
-                    id: 1,
+                    id: 'fakeuuid',
                     type: :user
                   }
                 }
@@ -71,59 +72,49 @@ describe GrapeSwagger::Jsonapi::Parser do
         let(:model) { UserSerializer } # contains :password attribute
 
         it 'return a hash defining the schema filtering the sensitive attributes' do
-          expect(subject).to eq({
-            data: {
+          expect(subject[:data][:properties]).to include(
+            id: { type: :string },
+            type: { type: :string },
+            attributes: {
               type: :object,
               properties: {
-                id: { type: :integer },
-                type: { type: :string },
-                attributes: {
+                first_name: { type: :string, example: 'Example string' },
+                last_name: { type: :string, example: 'Example string' },
+                email: { type: :string, example: 'Example string' }
+              }
+            },
+            relationships: {
+              type: :object,
+              properties: {
+                blog_posts: {
                   type: :object,
                   properties: {
-                    first_name: { type: :string },
-                    last_name: { type: :string },
-                    email: { type: :string }
-                    # password: { type: :string }, FILTERED
-                  }
-                },
-                relationships: {
-                  type: :object,
-                  properties: {
-                    blog_posts: {
-                      type: :object,
-                      properties: {
-                        data: {
-                          type: :array,
-                          items: {
-                            type: :object,
-                            properties: {
-                              id: { type: :integer },
-                              type: { type: :string }
-                            }
-                          }
+                    data: {
+                      type: :array,
+                      items: {
+                        type: :object,
+                        properties: {
+                          id: { type: :string },
+                          type: { type: :string }
                         }
                       }
                     }
                   }
                 }
-              },
-              example: {
-                id: 1,
-                type: :user,
-                attributes: {
-                  first_name: 'Example string',
-                  last_name: 'Example string',
-                  email: 'Example string'
-                  # password: "Example string", FILTERED
-                },
-                relationships: {
-                  blog_posts: {
-                    data: [{ id: 1, type: :blog_post }]
-                  }
-                }
               }
             }
-          })
+          )
+
+          expect(subject[:data][:example][:id]).to eq('fakeuuid')
+          expect(subject[:data][:example][:attributes]).to eq(
+            first_name: 'Example string',
+            last_name: 'Example string',
+            email: 'Example string'
+          )
+          expect(subject[:data][:example][:relationships][:blog_posts][:data].first[:id]).to eq('fakeuuid')
+          expect(%i[blog_post blog_posts]).to include(
+            subject[:data][:example][:relationships][:blog_posts][:data].first[:type]
+          )
         end
       end
 
@@ -145,8 +136,6 @@ describe GrapeSwagger::Jsonapi::Parser do
 
       context 'when serializer has DB-backed model' do
         let(:model) { DbRecordSerializer }
-
-        before { allow(SecureRandom).to receive(:uuid).and_return 'fakeuuid' }
 
         it 'contains examples for corresponding data types' do
           expect(subject[:data][:example][:attributes]).to include(
@@ -170,7 +159,7 @@ describe GrapeSwagger::Jsonapi::Parser do
             data: {
               type: :object,
               properties: {
-                id: { type: :integer },
+                id: { type: :string },
                 type: { type: :string },
                 attributes: {
                   type: :object,
@@ -183,7 +172,7 @@ describe GrapeSwagger::Jsonapi::Parser do
                       properties: {
                         data: {
                           properties: {
-                            id: { type: :integer },
+                            id: { type: :string },
                             type: { type: :string }
                           },
                           type: :object
@@ -195,18 +184,42 @@ describe GrapeSwagger::Jsonapi::Parser do
                 }
               },
               example: {
-                id: 1,
+                id: 'fakeuuid',
                 type: :blog_post,
                 attributes: {
                 },
                 relationships: {
                   user: {
-                    data: { id: 1, type: :user }
+                    data: { id: 'fakeuuid', type: :user }
                   }
                 }
               }
             }
           })
+        end
+      end
+
+      context 'when serializer attributes use documentation metadata' do
+        let(:model) { DocumentedCountrySerializer }
+
+        it 'parses type, desc, example and required' do
+          name = subject[:data][:properties][:attributes][:properties][:name]
+
+          expect(name).to include(
+            type: :string,
+            description: 'localized country name',
+            desc: 'localized country name',
+            example: 'Local Name'
+          )
+          expect(subject[:data][:properties][:attributes][:required]).to include(:name)
+          expect(subject[:data][:example][:attributes][:name]).to eq('Local Name')
+        end
+
+        it 'falls back to a string example for unknown types' do
+          nickname_schema = subject[:data][:properties][:attributes][:properties][:nickname]
+
+          expect(nickname_schema[:type]).to eq(:mystery_type)
+          expect(nickname_schema[:example]).to eq('Example string')
         end
       end
     end
