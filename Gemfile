@@ -16,4 +16,5 @@ group :development do
   gem 'rails', '>= 4.2.0'
   gem 'rspec', '~> 3.7'
   gem 'rubocop'
+  gem 'ostruct'
 end
