@@ -146,7 +146,14 @@ describe GrapeSwagger::Jsonapi::Parser do
             datetime_attribute: satisfy { |val| Time.parse(val).is_a? Time },
             date_attribute: satisfy { |val| Date.parse(val).is_a? Date },
             boolean_attribute: be_a(TrueClass).or(be_a(FalseClass)),
-            array_attribute: be_a(Array)
+            array_attribute: be_a(Array),
+            enum_attribute: 'draft'
+          )
+        end
+
+        it 'documents enum attribute as string with allowed values' do
+          expect(subject[:data][:properties][:attributes][:properties][:enum_attribute]).to eq(
+            type: :string, example: 'draft', enum: %w[draft published]
           )
         end
       end

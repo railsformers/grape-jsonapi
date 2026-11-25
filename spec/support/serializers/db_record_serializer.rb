@@ -13,6 +13,7 @@ class DbRecordSerializer
     :datetime_attribute,
     :date_attribute,
     :boolean_attribute,
-    :array_attribute
+    :array_attribute,
+    :enum_attribute
   )
 end

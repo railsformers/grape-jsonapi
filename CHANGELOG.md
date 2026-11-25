@@ -1,8 +1,8 @@
 ## Changelog
 
-### v1.0.2 (next)
+### v1.0.2 (November 25, 2026)
 
-* Your contribution here.
+* Swagger parser documents ActiveRecord enum attributes as `string` with `enum` values (they are stored as integers, but serialized as strings).
 
 ### v1.0.1 (January 25, 2022)
 

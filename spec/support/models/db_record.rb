@@ -3,6 +3,8 @@ require 'active_record'
 require 'ostruct'
 
 class DbRecord < ActiveRecord::Base
+  enum :enum_attribute, { draft: 0, published: 1 }
+
   def self.columns
     [
       # adhering to the ActiveRecord::ConnectionAdapters::Column contract
@@ -14,7 +16,8 @@ class DbRecord < ActiveRecord::Base
       ::OpenStruct.new(name: 'datetime_attribute', sql_type: 'timestamp without time zone', type: :datetime),
       ::OpenStruct.new(name: 'date_attribute', sql_type: 'date', type: :date),
       ::OpenStruct.new(name: 'boolean_attribute', sql_type: 'boolean', type: :boolean),
-      ::OpenStruct.new(name: 'array_attribute', sql_type: 'integer[]', type: :array)
+      ::OpenStruct.new(name: 'array_attribute', sql_type: 'integer[]', type: :array),
+      ::OpenStruct.new(name: 'enum_attribute', sql_type: 'integer', type: :integer)
     ]
   end
 end

@@ -113,9 +113,16 @@ module GrapeSwagger
         activerecord_model.columns.each_with_object({}) do |column, attributes|
           next unless model.attributes_to_serialize.key?(column.name.to_sym)
 
-          documentation = model.attributes_to_serialize[column.name.to_sym]&.documentation
+          documentation = model.attributes_to_serialize[column.name.to_sym]&.documentation || {}
+          documentation = enum_documentation(column.name).merge(documentation)
           attributes[column.name] = normalize_documentation(documentation, fallback_type: column.type)
         end
+      end
+
+      # Enums are stored as integers, but serialized as strings
+      def enum_documentation(column_name)
+        values = activerecord_model.defined_enums[column_name]&.keys
+        values ? { type: :string, values:, example: values.first } : {}
       end
 
       def activerecord_model
